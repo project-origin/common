@@ -1,0 +1,29 @@
+name: Build release artifacts
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  define-version:
+    uses: project-origin/.github/.github/workflows/reusable-tag-version.yaml@5f308f6499ed423ed1252156296e18be614202de
+
+  build-nuget-package:
+    needs:
+      - define-version
+    uses: ./.github/workflows/reusable-build-nuget-package.yaml
+    with:
+      version: ${{ needs.define-version.outputs.version }}
+      configuration: Release
+      nuget_artifact: nuget-packages
+      project: src
+
+  publish-nuget-package:
+    needs:
+      - build-nuget-package
+    uses: project-origin/.github/.github/workflows/reusable-publish-nuget-artifacts.yaml@639a49296c45ee5e9859b6cd7356a380025d9959
+    with:
+      nuget_artifact: nuget-packages
+    secrets:
+      nuget_api_key: ${{ secrets.NUGET_API_KEY }}
+

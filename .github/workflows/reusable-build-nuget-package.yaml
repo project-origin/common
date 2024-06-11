@@ -1,0 +1,42 @@
+name: Build nuget package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'The version of the package'
+        required: true
+        type: string
+      configuration:
+        description: 'The build configuration'
+        required: true
+        type: string
+      nuget_artifact:
+        description: 'The name of the artifact to upload to'
+        required: true
+        type: string
+      project:
+        description: 'The path to the project to build'
+        required: true
+        type: string
+
+jobs:
+  publish-nuget-package:
+    name: Build and publish nuget package
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+
+      - name: Setup .NET Core SDK from global.json
+        uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3 # v4
+
+      - name: Package nuget package
+        shell: bash
+        run: dotnet pack --output build --configuration ${{ inputs.configuration }} -p:Version=${{ inputs.version }} ${{ inputs.project }}
+
+      - name: Upload nuget artifact
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+        with:
+          name: ${{ inputs.nuget_artifact }}
+          retention-days: 1
+          path: build/*.nupkg
