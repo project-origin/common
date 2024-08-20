@@ -18,6 +18,7 @@ public static class ConfigureExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddSingleton<IOptionsValidator<TOption>, OptionsValidator<TOption>>();
         services.AddSingleton<IConfigureOptions<TOption>, UriOptionsConfigure<TOption>>();
         services.AddSingleton<IOptionsChangeTokenSource<TOption>, UriOptionsChangeTokenSource<TOption>>();
         services.AddSingleton<UriOptionsLoaderService<TOption>>();

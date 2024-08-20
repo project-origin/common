@@ -3,7 +3,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace ProjectOrigin.ServiceCommon.UriOptionsLoader;
 
-public class UriOptionsChangeTokenSource<TOptions> : IOptionsChangeTokenSource<TOptions> where TOptions : class
+internal class UriOptionsChangeTokenSource<TOptions> : IOptionsChangeTokenSource<TOptions> where TOptions : class
 {
     private readonly UriOptionsLoaderService<TOptions> _httpOptionsLoader;
 

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.AspNetCore.Hosting;
 using FluentAssertions;
 using ProjectOrigin.TestCommon;
+using System.ComponentModel.DataAnnotations;
 
 namespace ProjectOrigin.ServiceCommon.Tests;
 
@@ -283,7 +284,6 @@ public class UriOptionsLoaderTests
         listener.MonitorOption.CurrentValue.Dictionary["key2"].SomeKey.Should().Be("bla2");
     }
 
-
     [Fact]
     public async Task NotSupportedFormat_ThrowsException()
     {
@@ -315,6 +315,89 @@ public class UriOptionsLoaderTests
         exception.Message.Should().Be("Unsupported URI scheme: some");
     }
 
+    [Fact]
+    public async Task VerifyAttribute_ThrowsException()
+    {
+        var _networkMockServer = WireMockServer.Start();
+        var testPath = "/TestPath.json";
+
+        var _builder = new HostBuilder();
+        _builder.ConfigureHostConfiguration(config =>
+            config.Add(new MemoryConfigurationSource()
+            {
+                InitialData = new Dictionary<string, string?>()
+                {
+                    { $"{ConfigurationSection}:ConfigurationUri",  _networkMockServer.Urls[0] + testPath },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:15:00" },
+                }
+            }));
+
+        _builder.ConfigureServices((context, services) =>
+        {
+            services.AddHttpClient();
+            services.ConfigureUriOptionsLoader<TestOption2>(ConfigurationSection);
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption2>>();
+        });
+
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                    .WithBodyAsJson(new
+                    {
+                        Name = "Mike",
+                        Size = 0,
+                        Dictionary = new { }
+                    }));
+
+        using var host = _builder.Build();
+        var task = () => Task.Run(host.Start);
+
+        await task.Should().ThrowAsync<OptionsValidationException>().WithMessage("The field Size must be between 1 and 100.");
+    }
+
+    [Fact]
+    public async Task VerifyVerifier_ThrowsException()
+    {
+        var _networkMockServer = WireMockServer.Start();
+        var testPath = "/TestPath.json";
+
+        var _builder = new HostBuilder();
+        _builder.ConfigureHostConfiguration(config =>
+            config.Add(new MemoryConfigurationSource()
+            {
+                InitialData = new Dictionary<string, string?>()
+                {
+                    { $"{ConfigurationSection}:ConfigurationUri",  _networkMockServer.Urls[0] + testPath },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:15:00" },
+                }
+            }));
+
+        _builder.ConfigureServices((context, services) =>
+        {
+            services.AddHttpClient();
+            services.ConfigureUriOptionsLoader<TestOption2>(ConfigurationSection);
+            services.AddSingleton<IValidateOptions<TestOption2>, TestValidator>();
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption2>>();
+        });
+
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                    .WithBodyAsJson(new
+                    {
+                        Name = "Mike",
+                        Size = 75,
+                        Dictionary = new { }
+                    }));
+
+        using var host = _builder.Build();
+        var task = () => Task.Run(host.Start);
+
+        await task.Should().ThrowAsync<OptionsValidationException>().WithMessage("Size must be less than 50.");
+    }
+
     internal class NetworkOptionsChangeListener<TOption>
     {
         public IOptionsMonitor<TOption> MonitorOption { get; }
@@ -333,7 +416,19 @@ public class UriOptionsLoaderTests
     internal record TestOption2
     {
         public required string Name { get; init; }
+        [Required, Range(1, 100)]
         public required int Size { get; init; }
         public required Dictionary<string, TestOption> Dictionary { get; init; }
+    }
+
+    internal class TestValidator : IValidateOptions<TestOption2>
+    {
+        public ValidateOptionsResult Validate(string? name, TestOption2 options)
+        {
+            if (options.Size > 50)
+                return ValidateOptionsResult.Fail("Size must be less than 50.");
+
+            return ValidateOptionsResult.Success;
+        }
     }
 }

@@ -1,27 +1,25 @@
 using System;
 using System.IO;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
-using Npgsql.Replication;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace ProjectOrigin.ServiceCommon.UriOptionsLoader;
 
-public sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDisposable where TOption : class
+internal sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDisposable where TOption : class
 {
     private readonly ILogger<UriOptionsLoaderService<TOption>> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly UriOptions _originOptions;
+    private readonly IOptionsValidator<TOption> _optionsValidator;
     private readonly PropertyInfo[] _optionProperties;
     private CancellationTokenSource _changeTokenSource;
     private TOption _option;
@@ -31,16 +29,18 @@ public sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDispo
     public UriOptionsLoaderService(
         ILogger<UriOptionsLoaderService<TOption>> logger,
         IHttpClientFactory httpClientFactory,
-        IOptions<UriOptions> originOptions)
+        IOptions<UriOptions> originOptions,
+        IOptionsValidator<TOption> optionsValidator)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _originOptions = originOptions.Value;
+        _optionsValidator = optionsValidator;
         _optionProperties = typeof(TOption).GetProperties();
         _changeTokenSource = new CancellationTokenSource();
         OptionChangeToken = new CancellationChangeToken(_changeTokenSource.Token);
 
-        _option = LoadRemoteOptions(CancellationToken.None).GetAwaiter().GetResult();
+        _option = GetVerifiedOptions(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public void Configure(TOption target)
@@ -69,7 +69,7 @@ public sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDispo
         {
             try
             {
-                var newOptions = await LoadRemoteOptions(stoppingToken);
+                var newOptions = await GetVerifiedOptions(stoppingToken);
 
                 if (!newOptions.Equals(_option))
                 {
@@ -93,7 +93,14 @@ public sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDispo
         _changeTokenSource = newTokenSource;
     }
 
-    private async Task<TOption> LoadRemoteOptions(CancellationToken stoppingToken)
+    private async Task<TOption> GetVerifiedOptions(CancellationToken stoppingToken)
+    {
+        var options = await LoadOptions(stoppingToken);
+        _optionsValidator.Validate(options);
+        return options;
+    }
+
+    private async Task<TOption> LoadOptions(CancellationToken stoppingToken)
     {
         if (_originOptions.ConfigurationUri.Scheme == Uri.UriSchemeHttp ||
     _originOptions.ConfigurationUri.Scheme == Uri.UriSchemeHttps)
@@ -117,29 +124,29 @@ public sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDispo
         response.EnsureSuccessStatusCode();
         var stringContent = await response.Content.ReadAsStringAsync(stoppingToken);
 
-        return Deserialize<TOption>(stringContent, _originOptions.ConfigurationUri.GetExtension());
+        return Deserialize(stringContent, _originOptions.ConfigurationUri.GetExtension());
     }
+
     private async Task<TOption> LoadFromFile(CancellationToken stoppingToken)
     {
         var stringContent = await File.ReadAllTextAsync(_originOptions.ConfigurationUri.LocalPath, stoppingToken);
 
-        return Deserialize<TOption>(stringContent, _originOptions.ConfigurationUri.GetExtension());
+        return Deserialize(stringContent, _originOptions.ConfigurationUri.GetExtension());
     }
 
-    private static T Deserialize<T>(string content, string extension)
+    private static TOption Deserialize(string content, string extension)
     {
         switch (extension)
         {
             case ".json":
-                return JsonSerializer.Deserialize<T>(content)
+                return JsonSerializer.Deserialize<TOption>(content)
                     ?? throw new JsonException("Failed to read options from response.");
 
             case ".yaml":
-                var deserializer = new DeserializerBuilder()
+                return new DeserializerBuilder()
                     .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-
-                return deserializer.Deserialize<T>(content)
+                    .Build()
+                    .Deserialize<TOption>(content)
                     ?? throw new YamlDotNet.Core.SyntaxErrorException("Failed to read options from response.");
             default:
                 throw new NotSupportedException($"Unsupported file extension: {extension}");

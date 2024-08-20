@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 
 namespace ProjectOrigin.ServiceCommon.UriOptionsLoader;
 
-public class UriOptionsConfigure<TOptions> : IConfigureOptions<TOptions> where TOptions : class
+internal class UriOptionsConfigure<TOptions> : IConfigureOptions<TOptions> where TOptions : class
 {
     private readonly UriOptionsLoaderService<TOptions> _httpOptionsLoader;
 
