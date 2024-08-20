@@ -1,14 +1,19 @@
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using Npgsql.Replication;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace ProjectOrigin.ServiceCommon.UriOptionsLoader;
 
@@ -110,21 +115,48 @@ public sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDispo
         using var httpClient = _httpClientFactory.CreateClient();
         var response = await httpClient.GetAsync(_originOptions.ConfigurationUri, stoppingToken);
         response.EnsureSuccessStatusCode();
+        var stringContent = await response.Content.ReadAsStringAsync(stoppingToken);
 
-        return await response.Content.ReadFromJsonAsync<TOption>(stoppingToken)
-            ?? throw new JsonException("Failed to read options from response.");
+        return Deserialize<TOption>(stringContent, _originOptions.ConfigurationUri.GetExtension());
     }
-
     private async Task<TOption> LoadFromFile(CancellationToken stoppingToken)
     {
-        var json = await System.IO.File.ReadAllTextAsync(_originOptions.ConfigurationUri.LocalPath, stoppingToken);
-        return JsonSerializer.Deserialize<TOption>(json)
-            ?? throw new JsonException("Failed to read options from file.");
+        var stringContent = await File.ReadAllTextAsync(_originOptions.ConfigurationUri.LocalPath, stoppingToken);
+
+        return Deserialize<TOption>(stringContent, _originOptions.ConfigurationUri.GetExtension());
+    }
+
+    private static T Deserialize<T>(string content, string extension)
+    {
+        switch (extension)
+        {
+            case ".json":
+                return JsonSerializer.Deserialize<T>(content)
+                    ?? throw new JsonException("Failed to read options from response.");
+
+            case ".yaml":
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .Build();
+
+                return deserializer.Deserialize<T>(content)
+                    ?? throw new YamlDotNet.Core.SyntaxErrorException("Failed to read options from response.");
+            default:
+                throw new NotSupportedException($"Unsupported file extension: {extension}");
+        }
     }
 
     public override void Dispose()
     {
         _changeTokenSource.Dispose();
         base.Dispose();
+    }
+}
+
+public static class UriExtensions
+{
+    public static string GetExtension(this Uri uri)
+    {
+        return Path.GetExtension(uri.Segments[^1]).ToLowerInvariant();
     }
 }

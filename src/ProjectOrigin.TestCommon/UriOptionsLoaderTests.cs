@@ -12,12 +12,13 @@ using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.AspNetCore.Hosting;
 using FluentAssertions;
 using System;
+using System.IO;
 
 namespace ProjectOrigin.TestCommon;
 
 public class UriOptionsLoaderTests
 {
-    private const string TestPath = "/TestPath";
+    private const string ConfigurationSection = "SomeSection";
     private const string Scenario = "MyScenario";
     private const string SecondCallState = "Second Call";
 
@@ -25,6 +26,7 @@ public class UriOptionsLoaderTests
     public async Task WhenChanged_MonitorCalled()
     {
         var _networkMockServer = WireMockServer.Start();
+        var testPath = "/TestPath.json";
 
         var _builder = new HostBuilder();
         _builder.ConfigureHostConfiguration(config =>
@@ -32,19 +34,19 @@ public class UriOptionsLoaderTests
             {
                 InitialData = new Dictionary<string, string?>()
                 {
-                    { "TestPath:ConfigurationUri",  _networkMockServer.Urls[0] + TestPath },
-                    { "TestPath:RefreshInterval", "00:00:10" },
+                    { $"{ConfigurationSection}:ConfigurationUri",  _networkMockServer.Urls[0] + testPath },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:00:10" },
                 }
             }));
 
         _builder.ConfigureServices((context, services) =>
         {
             services.AddHttpClient();
-            services.ConfigureUriOptionsLoader<TestOption>("TestPath");
-            services.AddSingleton<NetworkOptionsChangeListener>();
+            services.ConfigureUriOptionsLoader<TestOption>(ConfigurationSection);
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption>>();
         });
 
-        _networkMockServer.Given(Request.Create().WithPath(TestPath).UsingGet())
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
             .InScenario(Scenario)
             .WillSetStateTo(SecondCallState)
             .RespondWith(Response.Create()
@@ -55,7 +57,7 @@ public class UriOptionsLoaderTests
                     SomeKey = "SomeValue",
                 }));
 
-        _networkMockServer.Given(Request.Create().WithPath(TestPath).UsingGet())
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
             .InScenario(Scenario)
             .WhenStateIs(SecondCallState)
             .RespondWith(Response.Create()
@@ -70,7 +72,7 @@ public class UriOptionsLoaderTests
         using var host = _builder.Build();
         await Task.Run(host.Start);
 
-        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener>();
+        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener<TestOption>>();
 
         TestOption currentOption = listener.MonitorOption.CurrentValue;
         TestOption? newOption = null;
@@ -91,6 +93,7 @@ public class UriOptionsLoaderTests
     public async Task WhenNotChanged_MonitorNotCalled()
     {
         var _networkMockServer = WireMockServer.Start();
+        var testPath = "/TestPath.json";
 
         var _builder = new HostBuilder();
         _builder.ConfigureHostConfiguration(config =>
@@ -98,19 +101,19 @@ public class UriOptionsLoaderTests
             {
                 InitialData = new Dictionary<string, string?>()
                 {
-                    { "TestPath:ConfigurationUri",  _networkMockServer.Urls[0] + TestPath },
-                    { "TestPath:RefreshInterval", "00:00:5" },
+                    { $"{ConfigurationSection}:ConfigurationUri",  _networkMockServer.Urls[0] + testPath },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:00:05" },
                 }
             }));
 
         _builder.ConfigureServices((context, services) =>
         {
             services.AddHttpClient();
-            services.ConfigureUriOptionsLoader<TestOption>("TestPath");
-            services.AddSingleton<NetworkOptionsChangeListener>();
+            services.ConfigureUriOptionsLoader<TestOption>(ConfigurationSection);
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption>>();
         });
 
-        _networkMockServer.Given(Request.Create().WithPath(TestPath).UsingGet())
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
             .RespondWith(Response.Create()
                 .WithStatusCode(200)
                 .WithHeader("Content-Type", "application/json")
@@ -122,7 +125,7 @@ public class UriOptionsLoaderTests
         using var host = _builder.Build();
         await Task.Run(host.Start);
 
-        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener>();
+        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener<TestOption>>();
         bool called = false;
 
         listener.MonitorOption.OnChange((options, name) =>
@@ -136,6 +139,156 @@ public class UriOptionsLoaderTests
     }
 
     [Fact]
+    public async Task CanLoadJson()
+    {
+        var _networkMockServer = WireMockServer.Start();
+        var testPath = "/TestPath.json";
+
+        var _builder = new HostBuilder();
+        _builder.ConfigureHostConfiguration(config =>
+            config.Add(new MemoryConfigurationSource()
+            {
+                InitialData = new Dictionary<string, string?>()
+                {
+                    { $"{ConfigurationSection}:ConfigurationUri",  _networkMockServer.Urls[0] + testPath },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:15:00" },
+                }
+            }));
+
+        _builder.ConfigureServices((context, services) =>
+        {
+            services.AddHttpClient();
+            services.ConfigureUriOptionsLoader<TestOption2>(ConfigurationSection);
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption2>>();
+        });
+
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                    .WithBodyAsJson(new
+                    {
+                        Name = "Mike",
+                        Size = 10,
+                        Dictionary = new
+                        {
+                            key1 = new
+                            {
+                                SomeKey = "bla1"
+                            },
+                            key2 = new
+                            {
+                                SomeKey = "bla2"
+                            }
+                        }
+                    }));
+
+        using var host = _builder.Build();
+        await Task.Run(host.Start);
+
+        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener<TestOption2>>();
+        listener.MonitorOption.CurrentValue.Name.Should().Be("Mike");
+        listener.MonitorOption.CurrentValue.Size.Should().Be(10);
+        listener.MonitorOption.CurrentValue.Dictionary.Should().HaveCount(2);
+        listener.MonitorOption.CurrentValue.Dictionary["key1"].SomeKey.Should().Be("bla1");
+        listener.MonitorOption.CurrentValue.Dictionary["key2"].SomeKey.Should().Be("bla2");
+    }
+
+    [Fact]
+    public async Task CanLoadYaml()
+    {
+        var _networkMockServer = WireMockServer.Start();
+        var testPath = "/TestPath.yaml";
+
+        var _builder = new HostBuilder();
+        _builder.ConfigureHostConfiguration(config =>
+            config.Add(new MemoryConfigurationSource()
+            {
+                InitialData = new Dictionary<string, string?>()
+                {
+                    { $"{ConfigurationSection}:ConfigurationUri",  _networkMockServer.Urls[0] + testPath },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:15:00" },
+                }
+            }));
+
+        _builder.ConfigureServices((context, services) =>
+        {
+            services.AddHttpClient();
+            services.ConfigureUriOptionsLoader<TestOption2>(ConfigurationSection);
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption2>>();
+        });
+
+        _networkMockServer.Given(Request.Create().WithPath(testPath).UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithBody("""
+                name: "Mike"
+                size: 10
+                dictionary:
+                  key1:
+                    someKey: "bla1"
+                  key2:
+                    someKey: "bla2"
+                """));
+
+        using var host = _builder.Build();
+        await Task.Run(host.Start);
+
+        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener<TestOption2>>();
+        listener.MonitorOption.CurrentValue.Name.Should().Be("Mike");
+        listener.MonitorOption.CurrentValue.Size.Should().Be(10);
+        listener.MonitorOption.CurrentValue.Dictionary.Should().HaveCount(2);
+        listener.MonitorOption.CurrentValue.Dictionary["key1"].SomeKey.Should().Be("bla1");
+        listener.MonitorOption.CurrentValue.Dictionary["key2"].SomeKey.Should().Be("bla2");
+    }
+
+    [Fact]
+    public async Task CanLoadYamlFromFile()
+    {
+        var yaml = """
+                name: "Mike"
+                size: 10
+                dictionary:
+                  key1:
+                    someKey: "bla1"
+                  key2:
+                    someKey: "bla2"
+                """;
+
+        var path = Path.GetTempPath() + Guid.NewGuid().ToString() + ".yaml";
+        File.WriteAllText(path, yaml);
+
+        var _builder = new HostBuilder();
+        _builder.ConfigureHostConfiguration(config =>
+            config.Add(new MemoryConfigurationSource()
+            {
+                InitialData = new Dictionary<string, string?>()
+                {
+                    { $"{ConfigurationSection}:ConfigurationUri",  "file://" + path },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:15:00" },
+                }
+            }));
+
+        _builder.ConfigureServices((context, services) =>
+        {
+            services.AddHttpClient();
+            services.ConfigureUriOptionsLoader<TestOption2>(ConfigurationSection);
+            services.AddSingleton<NetworkOptionsChangeListener<TestOption2>>();
+        });
+
+        using var host = _builder.Build();
+        await Task.Run(host.Start);
+
+        var listener = host.Services.GetRequiredService<NetworkOptionsChangeListener<TestOption2>>();
+        listener.MonitorOption.CurrentValue.Name.Should().Be("Mike");
+        listener.MonitorOption.CurrentValue.Size.Should().Be(10);
+        listener.MonitorOption.CurrentValue.Dictionary.Should().HaveCount(2);
+        listener.MonitorOption.CurrentValue.Dictionary["key1"].SomeKey.Should().Be("bla1");
+        listener.MonitorOption.CurrentValue.Dictionary["key2"].SomeKey.Should().Be("bla2");
+    }
+
+
+    [Fact]
     public async Task NotSupportedFormat_ThrowsException()
     {
         // Arrange
@@ -145,8 +298,8 @@ public class UriOptionsLoaderTests
             {
                 InitialData = new Dictionary<string, string?>()
                 {
-                    { "TestPath:ConfigurationUri", "some://hello.com" },
-                    { "TestPath:RefreshInterval", "00:00:5" },
+                    { $"{ConfigurationSection}:ConfigurationUri",  "some://hello.com" },
+                    { $"{ConfigurationSection}:RefreshInterval", "00:00:05" },
                 }
             }));
 
@@ -154,7 +307,7 @@ public class UriOptionsLoaderTests
         _builder.ConfigureServices((context, services) =>
         {
             services.AddHttpClient();
-            services.ConfigureUriOptionsLoader<TestOption>("TestPath");
+            services.ConfigureUriOptionsLoader<TestOption>(ConfigurationSection);
         });
 
         using var host = _builder.Build();
@@ -166,11 +319,11 @@ public class UriOptionsLoaderTests
         exception.Message.Should().Be("Unsupported URI scheme: some");
     }
 
-    internal class NetworkOptionsChangeListener
+    internal class NetworkOptionsChangeListener<TOption>
     {
-        public IOptionsMonitor<TestOption> MonitorOption { get; }
+        public IOptionsMonitor<TOption> MonitorOption { get; }
 
-        public NetworkOptionsChangeListener(IOptionsMonitor<TestOption> optionsMonitor)
+        public NetworkOptionsChangeListener(IOptionsMonitor<TOption> optionsMonitor)
         {
             MonitorOption = optionsMonitor;
         }
@@ -179,5 +332,12 @@ public class UriOptionsLoaderTests
     internal record TestOption
     {
         public required string SomeKey { get; init; }
+    }
+
+    internal record TestOption2
+    {
+        public required string Name { get; init; }
+        public required int Size { get; init; }
+        public required Dictionary<string, TestOption> Dictionary { get; init; }
     }
 }
