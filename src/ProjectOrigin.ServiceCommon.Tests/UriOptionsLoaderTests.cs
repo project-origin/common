@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -11,10 +9,9 @@ using ProjectOrigin.ServiceCommon.UriOptionsLoader;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.AspNetCore.Hosting;
 using FluentAssertions;
-using System;
-using System.IO;
+using ProjectOrigin.TestCommon;
 
-namespace ProjectOrigin.TestCommon;
+namespace ProjectOrigin.ServiceCommon.Tests;
 
 public class UriOptionsLoaderTests
 {
@@ -255,8 +252,7 @@ public class UriOptionsLoaderTests
                     someKey: "bla2"
                 """;
 
-        var path = Path.GetTempPath() + Guid.NewGuid().ToString() + ".yaml";
-        File.WriteAllText(path, yaml);
+        var path = TempFile.WriteAllText(yaml, ".yaml");
 
         var _builder = new HostBuilder();
         _builder.ConfigureHostConfiguration(config =>
