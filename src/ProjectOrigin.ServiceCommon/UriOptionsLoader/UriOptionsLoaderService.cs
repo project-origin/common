@@ -10,13 +10,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace ProjectOrigin.ServiceCommon.UriOptionsLoader;
 
 internal sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDisposable where TOption : class
 {
     private readonly ILogger<UriOptionsLoaderService<TOption>> _logger;
+    private readonly IDeserializer _yamlDeserializer;
+    private readonly JsonSerializerOptions? _jsonSerializerOptions;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly UriOptions _originOptions;
     private readonly IOptionsValidator<TOption> _optionsValidator;
@@ -28,11 +29,15 @@ internal sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDis
 
     public UriOptionsLoaderService(
         ILogger<UriOptionsLoaderService<TOption>> logger,
+        IDeserializer yamlDeserializer,
+        JsonSerializerOptions? jsonSerializerOptions,
         IHttpClientFactory httpClientFactory,
         IOptions<UriOptions> originOptions,
         IOptionsValidator<TOption> optionsValidator)
     {
         _logger = logger;
+        _yamlDeserializer = yamlDeserializer;
+        _jsonSerializerOptions = jsonSerializerOptions;
         _httpClientFactory = httpClientFactory;
         _originOptions = originOptions.Value;
         _optionsValidator = optionsValidator;
@@ -134,18 +139,16 @@ internal sealed class UriOptionsLoaderService<TOption> : BackgroundService, IDis
         return Deserialize(stringContent, _originOptions.ConfigurationUri.GetExtension());
     }
 
-    private static TOption Deserialize(string content, string extension)
+    private TOption Deserialize(string content, string extension)
     {
         switch (extension)
         {
             case ".json":
-                return JsonSerializer.Deserialize<TOption>(content)
+                return JsonSerializer.Deserialize<TOption>(content, _jsonSerializerOptions)
                     ?? throw new JsonException("Failed to read options from response.");
 
             case ".yaml":
-                return new DeserializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build()
+                return _yamlDeserializer
                     .Deserialize<TOption>(content)
                     ?? throw new YamlDotNet.Core.SyntaxErrorException("Failed to read options from response.");
             default:
