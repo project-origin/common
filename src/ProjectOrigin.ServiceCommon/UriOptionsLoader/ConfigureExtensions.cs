@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using YamlDotNet.Serialization;
@@ -37,7 +38,7 @@ public static class ConfigureExtensions
             .BindConfiguration(configSectionPath)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
+        services.AddSingleton(new JsonSerializerOptions());
         services.AddSingleton<IDeserializer>(
             deserializerBuilderConfigure(new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance))
