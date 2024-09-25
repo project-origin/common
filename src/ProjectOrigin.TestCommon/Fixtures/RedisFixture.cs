@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using ProjectOrigin.TestCommon.Extensions;
 using Testcontainers.Redis;
 using Xunit;
 
@@ -21,7 +22,7 @@ public class RedisFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await _container.StartAsync();
+        await _container.StartWithLoggingAsync();
     }
 
     public async Task DisposeAsync()

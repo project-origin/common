@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
+using ProjectOrigin.TestCommon.Extensions;
 using Xunit;
 
 namespace ProjectOrigin.TestCommon.Fixtures;
@@ -26,7 +27,7 @@ public class OpenTelemetryFixture : IAsyncLifetime
         }
     }
 
-    public Task InitializeAsync() => _container.StartAsync();
+    public Task InitializeAsync() => _container.StartWithLoggingAsync();
 
     public Task DisposeAsync() => _container.StopAsync();
 

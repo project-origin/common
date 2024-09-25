@@ -39,7 +39,6 @@ clean:
 
 ## Restores all dotnet projects
 restore:
-	dotnet tool restore --tool-manifest src/.config/dotnet-tools.json
 	dotnet restore $(src_path)
 
 ## Builds all the code
@@ -61,9 +60,3 @@ sonarcloud-test:
 ## Run all Unit-tests
 unit-test:
 	dotnet test $(src_path) --filter 'FullyQualifiedName!~IntegrationTests'
-
-## Builds the local container, creates kind cluster and installs chart, and verifies it works
-verify-chart:
-	@kind version >/dev/null 2>&1 || { echo >&2 "kind not installed! kind is required to use recipe, please install or use devcontainer"; exit 1;}
-	@helm version >/dev/null 2>&1 || { echo >&2 "helm not installed! helm is required to use recipe, please install or use devcontainer"; exit 1;}
-	chart/run_kind_test.sh
