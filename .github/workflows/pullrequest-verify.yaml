@@ -21,4 +21,4 @@ jobs:
       version: 0.0.1
       configuration: Release
       nuget_artifact: nuget-packages
-      project: src
+      project: .
