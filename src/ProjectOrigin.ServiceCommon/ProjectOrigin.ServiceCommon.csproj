@@ -1,9 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
+    <PackageId>ProjectOrigin.ServiceCommon</PackageId>
+    <Company>Project-Origin</Company>
+    <PackageTags>Project Origin;ProjectOrigin</PackageTags>
+    <Description>This library contains common service code to more easily create streamlined services.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/project-origin/common.git</RepositoryUrl>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 

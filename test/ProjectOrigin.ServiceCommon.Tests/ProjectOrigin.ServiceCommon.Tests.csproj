@@ -1,15 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-
   <ItemGroup>
-    <ProjectReference Include="..\ProjectOrigin.ServiceCommon\ProjectOrigin.ServiceCommon.csproj" />
-    <ProjectReference Include="..\ProjectOrigin.TestCommon\ProjectOrigin.TestCommon.csproj" />
+    <ProjectReference Include="..\..\src\ProjectOrigin.ServiceCommon\ProjectOrigin.ServiceCommon.csproj" />
+    <ProjectReference Include="..\..\src\ProjectOrigin.TestCommon\ProjectOrigin.TestCommon.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectOrigin.ServiceCommon", "ProjectOrigin.ServiceCommon\ProjectOrigin.ServiceCommon.csproj", "{C8FE2F8B-176E-4376-876A-45D9F42D89AC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectOrigin.ServiceCommon", "src\ProjectOrigin.ServiceCommon\ProjectOrigin.ServiceCommon.csproj", "{C8FE2F8B-176E-4376-876A-45D9F42D89AC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectOrigin.TestCommon", "ProjectOrigin.TestCommon\ProjectOrigin.TestCommon.csproj", "{6A64052A-4B01-4188-82E1-AF34888E2E2B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectOrigin.TestCommon", "src\ProjectOrigin.TestCommon\ProjectOrigin.TestCommon.csproj", "{6A64052A-4B01-4188-82E1-AF34888E2E2B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectOrigin.ServiceCommon.Tests", "ProjectOrigin.ServiceCommon.Tests\ProjectOrigin.ServiceCommon.Tests.csproj", "{E19C75A6-6ABE-43B9-B052-C8C7BE1199B9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectOrigin.ServiceCommon.Tests", "test\ProjectOrigin.ServiceCommon.Tests\ProjectOrigin.ServiceCommon.Tests.csproj", "{E19C75A6-6ABE-43B9-B052-C8C7BE1199B9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
