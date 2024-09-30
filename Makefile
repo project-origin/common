@@ -1,8 +1,3 @@
-src_path := src
-
-docfx_config := doc/docfx.json
-docfx_site_dir := doc/_site
-
 formatting_header := \033[1m
 formatting_command := \033[1;34m
 formatting_desc := \033[0;32m
@@ -31,32 +26,32 @@ info:
 ## Lint the dotnet code
 lint:
 	@echo "Verifying code formatting..."
-	dotnet format $(src_path) --verify-no-changes
+	dotnet format --verify-no-changes
 
 ## Does a dotnet clean
 clean:
-	dotnet clean $(src_path)
+	dotnet clean
 
 ## Restores all dotnet projects
 restore:
-	dotnet restore $(src_path)
+	dotnet restore
 
 ## Builds all the code
 build: restore
-	dotnet build --no-restore $(src_path)
+	dotnet build --no-restore
 
 ## Formats files using dotnet format
 format:
-	dotnet format $(src_path)
+	dotnet format
 
 ## Run all tests
 test: build
-	dotnet test --no-build $(src_path)
+	dotnet test --no-build
 
 ## Tests run with the sonarcloud analyser
 sonarcloud-test:
-	dotnet test --no-build $(src_path)
+	dotnet test --no-build
 
 ## Run all Unit-tests
 unit-test:
-	dotnet test $(src_path) --filter 'FullyQualifiedName!~IntegrationTests'
+	dotnet test --filter 'FullyQualifiedName!~IntegrationTests'
