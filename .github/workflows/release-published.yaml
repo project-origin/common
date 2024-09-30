@@ -16,7 +16,7 @@ jobs:
       version: ${{ needs.define-version.outputs.version }}
       configuration: Release
       nuget_artifact: nuget-packages
-      project: src
+      project: .
 
   publish-nuget-package:
     needs:
