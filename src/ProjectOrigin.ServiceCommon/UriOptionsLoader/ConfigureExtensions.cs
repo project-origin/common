@@ -42,6 +42,7 @@ public static class ConfigureExtensions
         services.AddSingleton<IDeserializer>(
             deserializerBuilderConfigure(new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance))
+            .IgnoreUnmatchedProperties()
             .Build());
 
         services.AddSingleton<IOptionsValidator<TOption>, OptionsValidator<TOption>>();

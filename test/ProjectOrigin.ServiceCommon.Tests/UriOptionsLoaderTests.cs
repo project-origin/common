@@ -254,6 +254,7 @@ public class UriOptionsLoaderTests
                     someKey: "bla1"
                   key2:
                     someKey: "bla2"
+                someUnknownKey: "bla3"
                 """;
 
         var path = TempFile.WriteAllText(yaml, ".yaml");
