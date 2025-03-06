@@ -4,5 +4,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <WarningsAsErrors>IDE0005</WarningsAsErrors>
+    <GenerateDockerfile>true</GenerateDockerfile>
   </PropertyGroup>
 </Project>
