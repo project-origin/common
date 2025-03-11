@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 
+namespace ProjectOrigin.TestCommon;
+
 public class ModifiedDockerfile : IDisposable
 {
     private readonly string _tempFile;
@@ -9,10 +11,12 @@ public class ModifiedDockerfile : IDisposable
 
     public ModifiedDockerfile(string sourcePath, Func<string, string> modification)
     {
-        _tempFile = $"{sourcePath}.tmp";
-        var oldContent = File.ReadAllText(sourcePath);
-        var newContent = modification(oldContent);
-        File.WriteAllText(_tempFile, newContent);
+        string directory = Path.GetDirectoryName(sourcePath)!;
+        string fileName = Path.GetFileName(sourcePath);
+        _tempFile = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(fileName)}.tmp{Path.GetExtension(fileName)}");
+
+        string str = File.ReadAllText(sourcePath);
+        File.WriteAllText(_tempFile, modification(str));
     }
 
     public void Dispose()
